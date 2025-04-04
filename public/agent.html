@@ -1,114 +1,79 @@
-// ✅ Twilio-based Remote Support Server with short customer link support
-const express = require('express');
-const cors = require('cors');
-const { v4: uuidv4 } = require('uuid');
-const { AccessToken } = require('twilio').jwt;
-const VideoGrant = AccessToken.VideoGrant;
-const path = require('path');
-require('dotenv').config();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent Support Dashboard</title>
+  <script src="https://sdk.twilio.com/js/video/releases/2.27.0/twilio-video.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+  <main class="max-w-2xl mx-auto mt-10 p-4 bg-white rounded shadow">
+    <h1 class="text-2xl font-bold mb-4">🎥 Start Support Session</h1>
+    <button id="startBtn" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Start Support Call</button>
+    
+    <div id="info" class="mt-4"></div>
+    <div id="video-container" class="mt-4 rounded border h-96"></div>
+  </main>
 
-const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
-const TWILIO_API_KEY_SID = process.env.TWILIO_API_KEY_SID;
-const TWILIO_API_KEY_SECRET = process.env.TWILIO_API_KEY_SECRET;
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const info = document.getElementById('info');
+    const videoContainer = document.getElementById('video-container');
 
-// In-memory token storage (basic — replace with DB for production)
-const customerTokens = {};
+    startBtn.onclick = async () => {
+      try {
+        const res = await fetch('/create-room', { method: 'POST' });
+        const data = await res.json();
 
-app.use(cors());
-app.use(express.json());
-app.use(express.static('public'));
+        if (!data.roomName || !data.agentToken || !data.customerLink) {
+          throw new Error("Missing room or token from server.");
+        }
 
-// Create room and store customer token
-app.post('/create-room', (req, res) => {
-  const roomName = uuidv4();
+        const fullCustomerLink = `${window.location.origin}${data.customerLink}`;
 
-  const agentToken = new AccessToken(
-    TWILIO_ACCOUNT_SID,
-    TWILIO_API_KEY_SID,
-    TWILIO_API_KEY_SECRET,
-    { identity: 'agent' }
-  );
-  agentToken.addGrant(new VideoGrant({ room: roomName }));
+        info.innerHTML = `
+          <div class="mb-4">
+            <p class="mb-2 font-medium">📋 Share this customer link:</p>
+            <div class="flex gap-2 items-center">
+              <input id="customerLink" value="${fullCustomerLink}" readonly class="flex-1 border px-3 py-2 rounded bg-white text-sm text-gray-700" />
+              <button onclick="copyLink()" class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-sm">Copy</button>
+            </div>
+          </div>
+          <p>🔍 Room ID: <strong>${data.roomName}</strong></p>
+        `;
 
-  const customerToken = new AccessToken(
-    TWILIO_ACCOUNT_SID,
-    TWILIO_API_KEY_SID,
-    TWILIO_API_KEY_SECRET,
-    { identity: 'customer' }
-  );
-  customerToken.addGrant(new VideoGrant({ room: roomName }));
-
-  // Store customer token for later
-  customerTokens[roomName] = customerToken.toJwt();
-
-  console.log("✅ Twilio Room created:", roomName);
-
-  res.json({
-    roomName,
-    agentToken: agentToken.toJwt(),
-    customerLink: `/join?room=${roomName}`
-  });
-});
-
-// Serve support.html with token injected dynamically
-app.get('/join', (req, res) => {
-  const room = req.query.room;
-  const token = customerTokens[room];
-
-  if (!room || !token) {
-    return res.status(404).send("Invalid or expired room.");
-  }
-
-  // Inject the token and room into the HTML response
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Support Call</title>
-      <script src="https://sdk.twilio.com/js/video/releases/2.27.0/twilio-video.min.js"></script>
-      <script src="https://cdn.tailwindcss.com"></script>
-    </head>
-    <body class="bg-gray-100">
-      <main class="max-w-2xl mx-auto mt-10 p-4 bg-white rounded shadow text-center">
-        <h1 class="text-2xl font-bold mb-4">📞 Connecting you to support...</h1>
-        <div id="video-container" class="rounded border h-96"></div>
-      </main>
-      <script>
-        const roomName = "${room}";
-        const token = "${token}";
-
-        Twilio.Video.connect(token, {
-          name: roomName,
-          audio: true,
-          video: true
+        Twilio.Video.connect(data.agentToken, {
+          name: data.roomName,
+          audio: false,
+          video: false
         }).then(room => {
-          room.localParticipant.tracks.forEach(pub => {
-            if (pub.track) document.getElementById("video-container").appendChild(pub.track.attach());
-          });
-          room.on('participantConnected', participant => {
-            participant.on('trackSubscribed', track => {
-              document.getElementById("video-container").appendChild(track.attach());
-            });
-          });
+          room.participants.forEach(p => attachParticipant(p));
+          room.on('participantConnected', attachParticipant);
         }).catch(err => {
-          console.error("Connection failed", err);
-          alert("❌ Failed to join support session.");
+          console.error('Connection error:', err);
+          alert("❌ Could not connect to Twilio Video.");
         });
-      </script>
-    </body>
-    </html>
-  `);
-});
 
-app.get('/', (req, res) => {
-  res.redirect('/agent.html');
-});
+        function attachParticipant(participant) {
+          participant.on('trackSubscribed', track => {
+            videoContainer.appendChild(track.attach());
+          });
+        }
 
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-});
+      } catch (err) {
+        console.error("❌ Error creating room:", err);
+        alert("❌ Failed to create room. Please check the server logs.");
+      }
+    };
+
+    function copyLink() {
+      const input = document.getElementById("customerLink");
+      input.select();
+      document.execCommand("copy");
+      alert("✅ Customer link copied to clipboard!");
+    }
+  </script>
+</body>
+</html>
