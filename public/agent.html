@@ -6,15 +6,29 @@
   <title>Agent Support Dashboard</title>
   <script src="https://sdk.twilio.com/js/video/releases/2.27.0/twilio-video.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    #video-container video {
+      width: 100%;
+      height: auto;
+      max-height: 50vh;
+      object-fit: contain;
+    }
+  </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
 
-  <main class="max-w-2xl mx-auto mt-10 p-4 bg-white rounded shadow">
-    <h1 class="text-2xl font-bold mb-4">🎥 Start Support Session</h1>
-    <button id="startBtn" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Start Support Call</button>
-    
-    <div id="info" class="mt-4"></div>
-    <div id="video-container" class="mt-4 rounded border h-96"></div>
+  <main class="max-w-2xl mx-auto mt-10 p-4 bg-white rounded shadow space-y-4">
+    <h1 class="text-2xl font-bold">🎥 Start Support Session</h1>
+
+    <button id="startBtn" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+      Start Support Call
+    </button>
+
+    <div id="info"></div>
+
+    <div id="video-container" class="rounded border h-64 bg-black flex items-center justify-center">
+      <p class="text-gray-400">Customer video will appear here</p>
+    </div>
   </main>
 
   <script>
@@ -34,14 +48,14 @@
         const fullCustomerLink = `${window.location.origin}${data.customerLink}`;
 
         info.innerHTML = `
-          <div class="mb-4">
+          <div>
             <p class="mb-2 font-medium">📋 Share this customer link:</p>
             <div class="flex gap-2 items-center">
               <input id="customerLink" value="${fullCustomerLink}" readonly class="flex-1 border px-3 py-2 rounded bg-white text-sm text-gray-700" />
               <button onclick="copyLink()" class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-sm">Copy</button>
             </div>
           </div>
-          <p>🔍 Room ID: <strong>${data.roomName}</strong></p>
+          <p class="mt-2 text-sm">🔍 Room ID: <strong>${data.roomName}</strong></p>
         `;
 
         Twilio.Video.connect(data.agentToken, {
@@ -58,7 +72,9 @@
 
         function attachParticipant(participant) {
           participant.on('trackSubscribed', track => {
-            videoContainer.appendChild(track.attach());
+            const media = track.attach();
+            videoContainer.innerHTML = ''; // Clear placeholder
+            videoContainer.appendChild(media);
           });
         }
 
