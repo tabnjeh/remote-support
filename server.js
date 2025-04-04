@@ -109,9 +109,13 @@ app.get('/join', (req, res) => {
 
         document.getElementById("switchCamera").addEventListener("click", async () => {
           currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+
           const newTrack = await startVideo(currentFacingMode);
           const attachedElement = localTrack.detach()[0];
           attachedElement.remove();
+
+          localTrack.stop(); // ✅ important fix to release old track
+
           roomInstance.localParticipant.unpublishTrack(localTrack);
           roomInstance.localParticipant.publishTrack(newTrack);
           document.getElementById("video-container").appendChild(newTrack.attach());
