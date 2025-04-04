@@ -17,17 +17,10 @@
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
-
   <main class="max-w-2xl mx-auto mt-10 p-4 bg-white rounded shadow space-y-4">
     <h1 class="text-2xl font-bold">🎥 Start Support Session</h1>
-
-    <button id="startBtn" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
-      Start Support Call
-    </button>
-
+    <button id="startBtn" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Start Support Call</button>
     <div id="info"></div>
-
-    <!-- ✅ Clean video layout -->
     <div id="video-container" class="rounded border overflow-hidden">
       <p class="text-gray-400 text-sm p-4">Customer video will appear here</p>
     </div>
@@ -62,7 +55,7 @@
 
         Twilio.Video.connect(data.agentToken, {
           name: data.roomName,
-          audio: true,   // ✅ Agent can hear customer
+          audio: true,
           video: false
         }).then(room => {
           room.participants.forEach(p => attachParticipant(p));

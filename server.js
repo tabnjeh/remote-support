@@ -90,7 +90,7 @@ app.get('/join', (req, res) => {
 
           Twilio.Video.connect(token, {
             name: roomName,
-            audio: true,
+            audio: true, // ✅ Customer sends audio
             tracks: [track]
           }).then(room => {
             roomInstance = room;
@@ -110,21 +110,15 @@ app.get('/join', (req, res) => {
         document.getElementById("switchCamera").addEventListener("click", async () => {
           try {
             currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-
             const oldTrack = localTrack;
             const attachedElement = oldTrack.detach()[0];
             attachedElement?.remove();
             oldTrack.stop();
-
             roomInstance.localParticipant.unpublishTrack(oldTrack);
-
             await new Promise(resolve => setTimeout(resolve, 500));
-
             const newTrack = await Twilio.Video.createLocalVideoTrack({ facingMode: currentFacingMode });
-
             roomInstance.localParticipant.publishTrack(newTrack);
             document.getElementById("video-container").appendChild(newTrack.attach());
-
             localTrack = newTrack;
           } catch (error) {
             console.error("Camera switch failed:", error);
