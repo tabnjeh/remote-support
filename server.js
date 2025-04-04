@@ -2,16 +2,17 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const app = express();
-const PORT = 3000;
-
+const PORT = process.env.PORT || 3000;
 require('dotenv').config();
 
+// Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static('public')); // ✅ Serves agent.html & support.html
 
 const DAILY_API_KEY = process.env.DAILY_API_KEY;
 
+// 🔹 Create a non-expiring Daily.co room
 app.post('/create-room', async (req, res) => {
   try {
     const response = await axios.post(
@@ -19,8 +20,9 @@ app.post('/create-room', async (req, res) => {
       {
         properties: {
           enable_chat: true,
-          eject_at_room_exp: false // 🔒 users won't be kicked
-          // no exp field = room doesn't expire
+          eject_at_room_exp: false, // ✅ Keeps users in even if room is deleted later
+          start_video_off: true,
+          start_audio_off: true
         }
       },
       {
@@ -32,12 +34,13 @@ app.post('/create-room', async (req, res) => {
     );
 
     res.json({ url: response.data.url });
-  } catch (err) {
-    console.error('Error creating room:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Room creation failed' });
+  } catch (error) {
+    console.error('Error creating room:', error?.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to create room' });
   }
 });
 
+// 🔹 Start the server
 app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
