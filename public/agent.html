@@ -37,7 +37,7 @@
         <p>🔍 Room: <strong>${data.roomName}</strong></p>
       `;
 
-      // Join the room as agent without camera/mic
+      // Join the room as agent (no camera/mic)
       Twilio.Video.connect(data.agentToken, {
         name: data.roomName,
         audio: false,
@@ -47,6 +47,7 @@
         room.on('participantConnected', attachParticipant);
       }).catch(err => {
         console.error('Connection error:', err);
+        alert("❌ Failed to connect to Twilio Video");
       });
 
       function attachParticipant(participant) {
