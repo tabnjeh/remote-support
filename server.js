@@ -12,12 +12,14 @@ const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_API_KEY_SID = process.env.TWILIO_API_KEY_SID;
 const TWILIO_API_KEY_SECRET = process.env.TWILIO_API_KEY_SECRET;
 
+// In-memory token storage (for testing only)
 const customerTokens = {};
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// Create room and store customer token
 app.post('/create-room', (req, res) => {
   const roomName = uuidv4();
 
@@ -48,6 +50,7 @@ app.post('/create-room', (req, res) => {
   });
 });
 
+// Serve HTML with injected token
 app.get('/join', (req, res) => {
   const room = req.query.room;
   const token = customerTokens[room];
