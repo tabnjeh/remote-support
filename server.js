@@ -12,14 +12,12 @@ const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_API_KEY_SID = process.env.TWILIO_API_KEY_SID;
 const TWILIO_API_KEY_SECRET = process.env.TWILIO_API_KEY_SECRET;
 
-// In-memory token storage (temporary)
 const customerTokens = {};
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// 🔹 Create a room and store token
 app.post('/create-room', (req, res) => {
   const roomName = uuidv4();
 
@@ -39,7 +37,6 @@ app.post('/create-room', (req, res) => {
   );
   customerToken.addGrant(new VideoGrant({ room: roomName }));
 
-  // Store customer token in memory
   customerTokens[roomName] = customerToken.toJwt();
 
   console.log("✅ Twilio Room created:", roomName);
@@ -51,7 +48,6 @@ app.post('/create-room', (req, res) => {
   });
 });
 
-// 🔹 Serve support page with injected token
 app.get('/join', (req, res) => {
   const room = req.query.room;
   const token = customerTokens[room];
@@ -60,7 +56,6 @@ app.get('/join', (req, res) => {
     return res.status(404).send("Invalid or expired room.");
   }
 
-  // Inject HTML with token
   res.send(`
     <!DOCTYPE html>
     <html lang="en">
