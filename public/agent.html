@@ -10,8 +10,9 @@
     #video-container video {
       width: 100%;
       height: auto;
-      max-height: 50vh;
+      max-height: 60vh;
       object-fit: contain;
+      border-radius: 0.5rem;
     }
   </style>
 </head>
@@ -26,8 +27,9 @@
 
     <div id="info"></div>
 
-    <div id="video-container" class="rounded border h-64 bg-black flex items-center justify-center">
-      <p class="text-gray-400">Customer video will appear here</p>
+    <!-- ✅ Clean video layout -->
+    <div id="video-container" class="rounded border overflow-hidden">
+      <p class="text-gray-400 text-sm p-4">Customer video will appear here</p>
     </div>
   </main>
 
@@ -60,7 +62,7 @@
 
         Twilio.Video.connect(data.agentToken, {
           name: data.roomName,
-          audio: false,
+          audio: true,   // ✅ Agent can hear customer
           video: false
         }).then(room => {
           room.participants.forEach(p => attachParticipant(p));
@@ -73,7 +75,7 @@
         function attachParticipant(participant) {
           participant.on('trackSubscribed', track => {
             const media = track.attach();
-            videoContainer.innerHTML = ''; // Clear placeholder
+            videoContainer.innerHTML = '';
             videoContainer.appendChild(media);
           });
         }
