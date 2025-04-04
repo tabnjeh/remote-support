@@ -22,40 +22,57 @@
     const videoContainer = document.getElementById('video-container');
 
     startBtn.onclick = async () => {
-      const res = await fetch('/create-room', { method: 'POST' });
-      const data = await res.json();
+      try {
+        const res = await fetch('/create-room', { method: 'POST' });
+        const data = await res.json();
 
-      if (!data.roomName || !data.agentToken || !data.customerToken) {
-        alert("❌ Failed to create room. Check the server.");
-        return;
-      }
+        if (!data.roomName || !data.agentToken || !data.customerToken) {
+          throw new Error("Missing room or tokens in response.");
+        }
 
-      const supportLink = `${window.location.origin}/support.html?room=${data.roomName}&token=${data.customerToken}`;
-      info.innerHTML = `
-        <p class="mb-2">📋 Share this customer link:</p>
-        <input value="${supportLink}" readonly class="w-full border px-3 py-2 rounded mb-4" />
-        <p>🔍 Room: <strong>${data.roomName}</strong></p>
-      `;
+        const supportLink = `${window.location.origin}/support.html?room=${data.roomName}&token=${data.customerToken}`;
 
-      // Join the room as agent (no camera/mic)
-      Twilio.Video.connect(data.agentToken, {
-        name: data.roomName,
-        audio: false,
-        video: false
-      }).then(room => {
-        room.participants.forEach(p => attachParticipant(p));
-        room.on('participantConnected', attachParticipant);
-      }).catch(err => {
-        console.error('Connection error:', err);
-        alert("❌ Failed to connect to Twilio Video");
-      });
+        info.innerHTML = `
+          <div class="mb-4">
+            <p class="mb-2 font-medium">📋 Share this customer link:</p>
+            <div class="flex gap-2 items-center">
+              <input id="customerLink" value="${supportLink}" readonly class="flex-1 border px-3 py-2 rounded bg-white text-sm text-gray-700" />
+              <button onclick="copyLink()" class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-sm">Copy</button>
+            </div>
+          </div>
+          <p>🔍 Room ID: <strong>${data.roomName}</strong></p>
+        `;
 
-      function attachParticipant(participant) {
-        participant.on('trackSubscribed', track => {
-          videoContainer.appendChild(track.attach());
+        Twilio.Video.connect(data.agentToken, {
+          name: data.roomName,
+          audio: false,
+          video: false
+        }).then(room => {
+          room.participants.forEach(p => attachParticipant(p));
+          room.on('participantConnected', attachParticipant);
+        }).catch(err => {
+          console.error('Connection error:', err);
+          alert("❌ Could not connect to Twilio Video.");
         });
+
+        function attachParticipant(participant) {
+          participant.on('trackSubscribed', track => {
+            videoContainer.appendChild(track.attach());
+          });
+        }
+
+      } catch (err) {
+        console.error("❌ Error creating room:", err);
+        alert("❌ Failed to create room. Please check the server logs or API keys.");
       }
     };
+
+    function copyLink() {
+      const input = document.getElementById("customerLink");
+      input.select();
+      document.execCommand("copy");
+      alert("✅ Customer link copied to clipboard!");
+    }
   </script>
 </body>
 </html>
