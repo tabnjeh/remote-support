@@ -12,14 +12,12 @@ const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_API_KEY_SID = process.env.TWILIO_API_KEY_SID;
 const TWILIO_API_KEY_SECRET = process.env.TWILIO_API_KEY_SECRET;
 
-// In-memory token storage (for testing only)
 const customerTokens = {};
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Create room and store customer token
 app.post('/create-room', (req, res) => {
   const roomName = uuidv4();
 
@@ -50,7 +48,6 @@ app.post('/create-room', (req, res) => {
   });
 });
 
-// Serve HTML with injected token
 app.get('/join', (req, res) => {
   const room = req.query.room;
   const token = customerTokens[room];
@@ -72,32 +69,56 @@ app.get('/join', (req, res) => {
     <body class="bg-gray-100 text-center">
       <main class="max-w-2xl mx-auto mt-10 p-4 bg-white rounded shadow">
         <h1 class="text-2xl font-bold mb-4">📞 Connecting you to support...</h1>
+        <button id="switchCamera" class="bg-blue-600 text-white px-4 py-2 rounded mb-4">Switch Camera</button>
         <div id="video-container" class="rounded border h-96"></div>
       </main>
       <script>
         const roomName = "${room}";
         const token = "${token}";
+        let currentFacingMode = 'environment';
+        let localTrack;
+        let roomInstance;
 
-        Twilio.Video.connect(token, {
-          name: roomName,
-          audio: true,
-          video: true
-        }).then(room => {
-          room.localParticipant.tracks.forEach(pub => {
-            if (pub.track) {
-              document.getElementById("video-container").appendChild(pub.track.attach());
-            }
-          });
+        async function startVideo(facingMode) {
+          const videoTrack = await Twilio.Video.createLocalVideoTrack({ facingMode });
+          localTrack = videoTrack;
+          return videoTrack;
+        }
 
-          room.on('participantConnected', participant => {
-            participant.on('trackSubscribed', track => {
-              document.getElementById("video-container").appendChild(track.attach());
+        async function connectToRoom() {
+          const track = await startVideo(currentFacingMode);
+
+          Twilio.Video.connect(token, {
+            name: roomName,
+            audio: true,
+            tracks: [track]
+          }).then(room => {
+            roomInstance = room;
+            document.getElementById("video-container").appendChild(track.attach());
+
+            room.on('participantConnected', participant => {
+              participant.on('trackSubscribed', track => {
+                document.getElementById("video-container").appendChild(track.attach());
+              });
             });
+          }).catch(error => {
+            console.error("Connection failed:", error);
+            alert("❌ Failed to join support session.");
           });
-        }).catch(error => {
-          console.error("Connection failed:", error);
-          alert("❌ Failed to join support session.");
+        }
+
+        document.getElementById("switchCamera").addEventListener("click", async () => {
+          currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+          const newTrack = await startVideo(currentFacingMode);
+          const attachedElement = localTrack.detach()[0];
+          attachedElement.remove();
+          roomInstance.localParticipant.unpublishTrack(localTrack);
+          roomInstance.localParticipant.publishTrack(newTrack);
+          document.getElementById("video-container").appendChild(newTrack.attach());
+          localTrack = newTrack;
         });
+
+        connectToRoom();
       </script>
     </body>
     </html>
